@@ -42,12 +42,6 @@ UKF::UKF() {
   for (int i=1; i<n_sigma_pts; i++)         // Weights of sigma points
     weights_(i) = 0.5/(n_aug_+lambda_);
 
-  P_ <<   1, 0, 0, 0, 0,                    // state covariance matrix
-          0, 1, 0, 0, 0,
-          0, 0, 1, 0, 0,
-          0, 0, 0, 1, 0,
-          1, 0, 0, 0, 1;
-
   R_radar_ << std_radr_ * std_radr_, 0,                         0,
               0,                     std_radphi_ * std_radphi_, 0,
               0,                     0,                         std_radrd_ * std_radrd_;
@@ -78,6 +72,13 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
       x_ << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1], 0, 0, 0;
     }
+
+    P_ <<   1, 0, 0, 0, 0,                    // initialize state covariance matrix
+            0, 1, 0, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 0, 1, 0,
+            1, 0, 0, 0, 1;
+
     time_us_ = meas_package.timestamp_;
     is_initialized_ = true;
     return;
