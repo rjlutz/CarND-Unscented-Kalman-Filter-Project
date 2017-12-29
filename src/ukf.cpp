@@ -1,5 +1,4 @@
 #include "ukf.h"
-#include "Eigen/Dense"
 #include <iostream>
 
 using namespace std;
@@ -25,6 +24,7 @@ UKF::UKF() {
   std_radr_ = 0.3;     // Radar measurement noise standard deviation radius in m
   std_radphi_ = 0.03;  // Radar measurement noise standard deviation angle in rad
   std_radrd_ = 0.3;    // Radar measurement noise standard deviation radius change in m/s
+
   is_initialized_ = false; // initially set to false, set to true in first call of ProcessMeasurement
   std_a_ = 1.5;                             // Process noise std longitudinal acceleration in m/s^2
   std_yawdd_ = 1;                           // Process noise std deviation yaw acceleration in rad/s^2
@@ -42,7 +42,7 @@ UKF::UKF() {
   for (int i=1; i<n_sigma_pts; i++)         // Weights of sigma points
     weights_(i) = 0.5/(n_aug_+lambda_);
 
-  P_ <<   1, 0, 0, 0, 0,  // state covariance matrix
+  P_ <<   1, 0, 0, 0, 0,                    // state covariance matrix
           0, 1, 0, 0, 0,
           0, 0, 1, 0, 0,
           0, 0, 0, 1, 0,
@@ -117,7 +117,7 @@ void UKF::Prediction(double delta_t) {
   for (int i = 0; i < n_sigma_pts; i++) {                      // iterate over sigma points
     VectorXd residual = Xsig_pred_.col(i) - x_;                // state difference
     residual(3) = tools.ConstrainAngle(residual(3));           // angle normalization
-    P_ = P_ + weights_(i) * residual * residual.transpose();
+    P_ += weights_(i) * residual * residual.transpose();
   }
 
 }
@@ -133,34 +133,34 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   int n_z = 2;
   MatrixXd Zsig = Xsig_pred_.topRows(n_z);
 
-  VectorXd z_pred = VectorXd(n_z);               //mean predicted measurement
+  VectorXd z_pred = VectorXd(n_z);                  //mean predicted measurement
   z_pred.fill(0.0);
   for (int i=0; i < n_sigma_pts; i++)
     z_pred +=  weights_(i) * Zsig.col(i);
 
 
-  MatrixXd S = MatrixXd(n_z,n_z);               // measurement covariance matrix S
+  MatrixXd S = MatrixXd(n_z,n_z);                   // measurement covariance matrix S
   S.fill(0.0);
-  for (int i = 0; i < n_sigma_pts; i++) {       // iterate over sigma points
+  for (int i = 0; i < n_sigma_pts; i++) {           // iterate over sigma points
     VectorXd z_residual = Zsig.col(i) - z_pred;
     S += weights_(i) * z_residual * z_residual.transpose();
   }
-  S += R_lidar_;   //innovation measurement covariance matrix S
+  S += R_lidar_;                                    //innovation measurement covariance matrix S
 
-  VectorXd z = meas_package.raw_measurements_;  // incoming lidar measurement
+  VectorXd z = meas_package.raw_measurements_;      // incoming lidar measurement
 
-  MatrixXd Tc = MatrixXd(n_x_, n_z);  //create matrix for cross correlation Tc
+  MatrixXd Tc = MatrixXd(n_x_, n_z);                //create matrix for cross correlation Tc
   Tc.fill(0.0);
-  for (int i = 0; i < n_sigma_pts; i++) {       // iterate over sigma points
+  for (int i = 0; i < n_sigma_pts; i++) {           // iterate over sigma points
     VectorXd z_residual = Zsig.col(i) - z_pred;     //residual
     VectorXd x_residual = Xsig_pred_.col(i) - x_;   // state difference
     Tc += weights_(i) * x_residual * z_residual.transpose();
   }
 
-  MatrixXd K = Tc * S.inverse();         //Kalman gain K
-  VectorXd x_residual = z - z_pred;      //residual
+  MatrixXd K = Tc * S.inverse();                    //Kalman gain K
+  VectorXd x_residual = z - z_pred;                 //residual
 
-  x_ += K * x_residual;                  //update state mean and covariance matrix
+  x_ += K * x_residual;                             //update state mean and covariance matrix
   P_ -= K*S*K.transpose();
   NIS_laser_ = x_residual.transpose() * S.inverse() * x_residual;  // NIS Update
 
@@ -191,16 +191,16 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
             (nu * (p_x * cos (psi) + p_y * sin(psi))) / sqrt(p_x*p_x + p_y*p_y); // rho_dot
   }
 
-  VectorXd z_pred = VectorXd(n_z);   //create vector for mean predicted measurement
+  VectorXd z_pred = VectorXd(n_z);                          //create vector for mean predicted measurement
   z_pred.fill(0.0);
   for (int i = 0; i < n_sigma_pts; i++)
     z_pred += weights_(i) * Zsig.col(i);
 
-  MatrixXd S = MatrixXd(n_z,n_z);   // innovation measurement covariance matrix S
+  MatrixXd S = MatrixXd(n_z,n_z);                           // innovation measurement covariance matrix S
   S.fill(0.0);
-  for (int i = 0; i < n_sigma_pts; i++) {  // iterate over sigma points
+  for (int i = 0; i < n_sigma_pts; i++) {                   // iterate over sigma points
     VectorXd A = Zsig.col(i) - z_pred;
-    A(1) = tools.ConstrainAngle(A(1));   // angle normalization
+    A(1) = tools.ConstrainAngle(A(1));                      // angle normalization
     S+= weights_(i) * A * A.transpose();
   }
   S += R_radar_; // add on the measurement error
